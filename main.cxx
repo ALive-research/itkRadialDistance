@@ -22,7 +22,8 @@ int main(int argc, char **argv)
   // =========================================================================
   std::string output;
   unsigned int inputSize;
-  float radius;
+  float inputSpacing;
+  float inputRadius;
 
   // =========================================================================
   // Parse arguments
@@ -33,18 +34,22 @@ int main(int argc, char **argv)
 
     TCLAP::ValueArg<std::string> outputArgument("o", "output", "Output file", true, "None", "string");
     TCLAP::ValueArg<unsigned int> sizeArgument("z", "size", "Image size in voxels (per axis)", false, 100, "unsigned int");
+    TCLAP::ValueArg<unsigned int> spacingArgument("s", "spacing", "Image spacing in mm", false, 1.0f, "float");
     TCLAP::ValueArg<float> radiusArgument("r", "radius", "Radius of the sphere", false, 1.0f, "float");
 
-    cmd.add(sizeArgument);
     cmd.add(outputArgument);
     cmd.add(radiusArgument);
+    cmd.add(sizeArgument);
+    cmd.add(spacingArgument);
 
     cmd.parse(argc,argv);
 
     output = outputArgument.getValue();
     inputSize = sizeArgument.getValue();
+    inputRadius = radiusArgument.getValue();
+    inputSpacing = spacingArgument.getValue();
 
-    if (radius < 0.0f)
+    if (inputRadius < 0.0f)
     {
       std::cerr << "Error: radius must be positive" << std::endl;
       return EXIT_FAILURE;
@@ -72,15 +77,19 @@ int main(int argc, char **argv)
   size.Fill(inputSize);
   itk::ImageRegion<3> region(start, size);
 
+  DistanceImageType::SpacingType spacing;
+  spacing[0] = inputSpacing; spacing[1] = inputSpacing; spacing[2] = inputSpacing;
+
   auto image = DistanceImageType::New();
   image->SetRegions(region);
   image->Allocate();
   image->FillBuffer(0);
+  image->SetSpacing(spacing);
 
   // =========================================================================
   // Populate the image with the distance
   // =========================================================================
-  float center[3] = {inputSize/2.0f};
+  float center[3] = {inputSize/2.0f, inputSize/2.0f, inputSize/2.0f};
   DistanceImageIterator it(image, image->GetLargestPossibleRegion());
   while(!it.IsAtEnd())
   {
@@ -91,7 +100,7 @@ int main(int argc, char **argv)
                           pow(point[1]-center[1], 2) +
                           pow(point[2]-center[2], 2));
 
-    it.Set(distance-radius);
+    it.Set(distance-inputRadius);
 
    ++it;
   }
